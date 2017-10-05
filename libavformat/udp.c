@@ -88,6 +88,7 @@ typedef struct UDPContext {
     int is_broadcast;
     int local_port;
     int reuse_socket;
+    int ignore_empty;
     int overrun_nonfatal;
     struct sockaddr_storage dest_addr;
     int dest_addr_len;
@@ -137,6 +138,7 @@ static const AVOption options[] = {
     { "timeout",        "set raise error timeout (only in read mode)",     OFFSET(timeout),        AV_OPT_TYPE_INT,    { .i64 = 0 },      0, INT_MAX, D },
     { "sources",        "Source list",                                     OFFSET(sources),        AV_OPT_TYPE_STRING, { .str = NULL },               .flags = D|E },
     { "block",          "Block list",                                      OFFSET(block),          AV_OPT_TYPE_STRING, { .str = NULL },               .flags = D|E },
+    { "ignore_empty",   "ignore empty UDP packets",                        OFFSET(ignore_empty),   AV_OPT_TYPE_BOOL,   { .i64 = 0 },      0, 1,       D|E },
     { NULL }
 };
 
@@ -786,6 +788,9 @@ static int udp_open(URLContext *h, const char *uri, int flags)
                                   FF_ARRAY_ELEMS(exclude_sources)))
                 goto fail;
         }
+        if (av_find_info_tag(buf, sizeof(buf), "ignore_empty", p)) {
+            s->ignore_empty = strtol(buf, NULL, 10);
+        }
         if (!is_output && av_find_info_tag(buf, sizeof(buf), "timeout", p))
             s->timeout = strtol(buf, NULL, 10);
         if (is_output && av_find_info_tag(buf, sizeof(buf), "broadcast", p))
@@ -1039,7 +1044,12 @@ static int udp_read(URLContext *h, uint8_t *buf, int size)
                 av_fifo_generic_read(s->fifo, buf, avail, NULL);
                 av_fifo_drain(s->fifo, AV_RL32(tmp) - avail);
                 pthread_mutex_unlock(&s->mutex);
-                return avail;
+                if (s->ignore_empty && avail == 0){
+                  av_log(h, AV_LOG_DEBUG, "Ignoring empty UDP packet\n");
+                  continue;
+                } else {
+                  return avail;
+                }
             } else if(s->circular_buffer_error){
                 int err = s->circular_buffer_error;
                 pthread_mutex_unlock(&s->mutex);
