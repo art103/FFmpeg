@@ -1733,6 +1733,16 @@ static const AVCodecDescriptor codec_descriptors[] = {
         .long_name = NULL_IF_CONFIG_SMALL("Infinity IMM5"),
         .props     = AV_CODEC_PROP_LOSSY,
     },
+#ifdef REALTEK_PATCH
+    {
+        .id        = AV_CODEC_ID_MJPEG_RTK,
+        .type      = AVMEDIA_TYPE_VIDEO,
+        .name      = "mjpeg_rtk",
+        .long_name = NULL_IF_CONFIG_SMALL("RTK Motion JPEG"),
+        .props     = AV_CODEC_PROP_INTRA_ONLY | AV_CODEC_PROP_LOSSY,
+        .mime_types= MT("image/jpeg"),
+    },
+#endif
 
     /* various PCM "codecs" */
     {
